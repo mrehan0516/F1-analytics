@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Race Strategist - Pit Wall AI</title>
+    <style>
+        :root {
+            --f1-red: #E10600;
+            --f1-black: #15151E;
+            --f1-white: #FFFFFF;
+            --f1-gray: #38383F;
+            --f1-light-gray: #F2F2F2;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Formula1', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--f1-black) 0%, #2D2D3D 100%);
+            min-height: 100vh;
+            color: var(--f1-white);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 3px solid var(--f1-red);
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: var(--f1-red);
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1.1em;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: var(--f1-red);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel-title {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .panel-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: var(--f1-red);
+            border-radius: 2px;
+        }
+        
+        /* Chat Panel */
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message.user {
+            align-items: flex-end;
+        }
+        
+        .message.agent {
+            align-items: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 15px;
+            line-height: 1.5;
+        }
+        
+        .user .message-bubble {
+            background: var(--f1-red);
+            border-bottom-right-radius: 5px;
+        }
+        
+        .agent .message-bubble {
+            background: var(--f1-gray);
+            border-bottom-left-radius: 5px;
+        }
+        
+        .message-sender {
+            font-size: 0.75em;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        
+        .chat-input-container {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1em;
+        }
+        
+        .chat-input::placeholder {
+            color: #888;
+        }
+        
+        .chat-input:focus {
+            outline: 2px solid var(--f1-red);
+        }
+        
+        .send-btn {
+            padding: 15px 30px;
+            background: var(--f1-red);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        
+        .send-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .send-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        /* Image Upload Panel */
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-zone:hover {
+            border-color: var(--f1-red);
+            background: rgba(225, 6, 0, 0.1);
+        }
+        
+        .upload-zone.dragover {
+            border-color: var(--f1-red);
+            background: rgba(225, 6, 0, 0.2);
+        }
+        
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            color: #888;
+        }
+        
+        #imagePreview {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .analysis-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border-left: 4px solid var(--f1-red);
+            display: none;
+        }
+        
+        /* Live Session Panel */
+        .live-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .live-btn {
+            padding: 20px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .live-btn.start {
+            background: var(--f1-red);
+            color: white;
+        }
+        
+        .live-btn.stop {
+            background: #666;
+            color: white;
+        }
+        
+        .live-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .live-status {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+        
+        .status-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        
+        .status-indicator.offline {
+            background: #666;
+        }
+        
+        .status-indicator.online {
+            background: #00FF00;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .quick-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+        
+        .quick-btn:hover {
+            background: var(--f1-red);
+            border-color: var(--f1-red);
+        }
+        
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 30px;
+            margin-top: 40px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        footer a {
+            color: var(--f1-red);
+            text-decoration: none;
+        }
+        
+        .tech-stack {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .tech-badge {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+        }
+        
+        /* Loading Spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--f1-red);
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🏎️ PIT WALL AI</div>
+            <div class="subtitle">F1 Race Strategist Live Agent</div>
+            <span class="badge">Powered by Google Gemini Live API</span>
+        </header>
+        
+        <div class="main-content">
+            <!-- Chat Panel -->
+            <div class="panel">
+                <div class="panel-title">Strategy Chat</div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message agent">
+                        <span class="message-sender">Pit Wall AI</span>
+                        <div class="message-bubble">
+                            Copy that. Pit Wall AI online and ready. I'll analyze race conditions and provide strategic recommendations. What's the situation?
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-container">
+                    <input type="text" class="chat-input" id="chatInput" placeholder="Ask about tire strategy, pit windows, weather..." />
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+                </div>
+                <div class="quick-actions">
+                    <button class="quick-btn" onclick="quickAsk('What tires should I use for a 50-lap race?')">Tire Strategy</button>
+                    <button class="quick-btn" onclick="quickAsk('When is the optimal pit window?')">Pit Window</button>
+                    <button class="quick-btn" onclick="quickAsk('Should I undercut or overcut?')">Undercut/Overcut</button>
+                    <button class="quick-btn" onclick="quickAsk('What if it starts raining?')">Weather Strategy</button>
+                </div>
+            </div>
+            
+            <!-- Image Analysis Panel -->
+            <div class="panel">
+                <div class="panel-title">Visual Analysis</div>
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('imageInput').click()">
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text">
+                        <strong>Drop an F1 image here</strong><br>
+                        Timing screen, telemetry, or race footage
+                    </div>
+                </div>
+                <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                <img id="imagePreview" alt="Preview">
+                <div class="analysis-result" id="analysisResult"></div>
+            </div>
+            
+            <!-- Live Session Panel -->
+            <div class="panel" style="grid-column: span 2;">
+                <div class="panel-title">🎙️ Live Voice Session</div>
+                <div class="live-controls">
+                    <button class="live-btn start" id="startLiveBtn" onclick="startLiveSession()">
+                        🎤 Start Live Session
+                    </button>
+                    <button class="live-btn stop" id="stopLiveBtn" onclick="stopLiveSession()" disabled>
+                        ⏹️ End Session
+                    </button>
+                </div>
+                <div class="live-status">
+                    <span class="status-indicator offline" id="statusIndicator"></span>
+                    <span id="statusText">Ready to connect. Click "Start Live Session" to begin voice interaction.</span>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Built for <a href="https://gemini-live-agent-challenge.devpost.com/">Gemini Live Agent Challenge</a></p>
+            <div class="tech-stack">
+                <span class="tech-badge">Google Gemini Live API</span>
+                <span class="tech-badge">Google Cloud Run</span>
+                <span class="tech-badge">FastAPI</span>
+                <span class="tech-badge">WebSockets</span>
+            </div>
+        </footer>
+    </div>
+    
+    <script>
+        // Configuration
+        const API_BASE = window.location.origin;
+        let conversationHistory = [];
+        let websocket = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        
+        // Chat Functions
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Disable send button
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<span class="loading"></span>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        history: conversationHistory
+                    })
+                });
+                
+                const data = await response.json();
+                addMessage(data.response, 'agent');
+                
+                // Update history
+                conversationHistory.push({ role: 'user', content: message });
+                conversationHistory.push({ role: 'model', content: data.response });
+                
+            } catch (error) {
+                addMessage('Radio failure! Unable to reach pit wall. Check connection.', 'agent');
+                console.error('Chat error:', error);
+            }
+            
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = 'Send';
+        }
+        
+        function addMessage(text, sender) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const senderName = sender === 'user' ? 'You' : 'Pit Wall AI';
+            messageDiv.innerHTML = `
+                <span class="message-sender">${senderName}</span>
+                <div class="message-bubble">${text}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function quickAsk(question) {
+            document.getElementById('chatInput').value = question;
+            sendMessage();
+        }
+        
+        // Image Analysis Functions
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('imagePreview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                
+                // Analyze image
+                analyzeImage(file);
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        async function analyzeImage(file) {
+            const resultDiv = document.getElementById('analysisResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<span class="loading"></span> Analyzing image...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch(`${API_BASE}/api/analyze`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `<strong>Pit Wall AI Analysis:</strong><br><br>${data.analysis}`;
+                
+            } catch (error) {
+                resultDiv.innerHTML = 'Analysis failed. Please try again.';
+                console.error('Analysis error:', error);
+            }
+        }
+        
+        // Drag and drop
+        const uploadZone = document.getElementById('uploadZone');
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                document.getElementById('imageInput').files = e.dataTransfer.files;
+                handleImageUpload({ target: { files: [file] } });
+            }
+        });
+        
+        // Live Session Functions
+        async function startLiveSession() {
+            const startBtn = document.getElementById('startLiveBtn');
+            const stopBtn = document.getElementById('stopLiveBtn');
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            startBtn.disabled = true;
+            statusText.textContent = 'Connecting to pit wall...';
+            
+            try {
+                // Connect WebSocket
+                const wsUrl = `${API_BASE.replace('http', 'ws')}/api/live`;
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = async () => {
+                    indicator.className = 'status-indicator online';
+                    statusText.textContent = 'Connected! Speak now or send messages.';
+                    stopBtn.disabled = false;
+                    
+                    // Start audio capture
+                    await startAudioCapture();
+                };
+                
+                websocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'text') {
+                        addMessage(data.data, 'agent');
+                    } else if (data.type === 'audio') {
+                        playAudio(data.data);
+                    }
+                };
+                
+                websocket.onclose = () => {
+                    stopLiveSession();
+                };
+                
+                websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    statusText.textContent = 'Connection error. Please try again.';
+                    startBtn.disabled = false;
+                };
+                
+            } catch (error) {
+                console.error('Live session error:', error);
+                statusText.textContent = 'Failed to start session.';
+                startBtn.disabled = false;
+            }
+        }
+        
+        async function startAudioCapture() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 0 && websocket && websocket.readyState === WebSocket.OPEN) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            const base64 = reader.result.split(',')[1];
+                            websocket.send(JSON.stringify({
+                                type: 'audio',
+                                data: base64
+                            }));
+                        };
+                        reader.readAsDataURL(event.data);
+                    }
+                };
+                
+                mediaRecorder.start(1000); // Send audio every second
+            } catch (error) {
+                console.error('Audio capture error:', error);
+            }
+        }
+        
+        function stopLiveSession() {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                mediaRecorder = null;
+            }
+            
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+            
+            document.getElementById('startLiveBtn').disabled = false;
+            document.getElementById('stopLiveBtn').disabled = true;
+            document.getElementById('statusIndicator').className = 'status-indicator offline';
+            document.getElementById('statusText').textContent = 'Session ended. Ready to reconnect.';
+        }
+        
+        function playAudio(base64Data) {
+            // Handle different audio formats from Gemini API
+            // Try wav first, fallback to other common formats
+            const formats = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/ogg'];
+            let audio = new Audio();
+            
+            // Attempt with wav first (most common from Gemini)
+            audio.src = 'data:audio/wav;base64,' + base64Data;
+            audio.onerror = function() {
+                // If wav fails, try raw pcm as fallback
+                console.log('Audio playback failed, format may not be supported');
+            };
+            audio.play().catch(e => console.log('Audio playback error:', e));
+        }
+        
+        // Enter key to send
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
