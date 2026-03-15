@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     port: int = Field(default=8080, env="PORT")
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     
+    # CORS Configuration (restrict in production)
+    cors_origins: str = Field(default="*", env="CORS_ORIGINS")
+    
     # Gemini Model Configuration
     gemini_model: str = "gemini-2.0-flash-exp"
     

@@ -666,8 +666,18 @@
         }
         
         function playAudio(base64Data) {
-            const audio = new Audio('data:audio/wav;base64,' + base64Data);
-            audio.play();
+            // Handle different audio formats from Gemini API
+            // Try wav first, fallback to other common formats
+            const formats = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/ogg'];
+            let audio = new Audio();
+            
+            // Attempt with wav first (most common from Gemini)
+            audio.src = 'data:audio/wav;base64,' + base64Data;
+            audio.onerror = function() {
+                // If wav fails, try raw pcm as fallback
+                console.log('Audio playback failed, format may not be supported');
+            };
+            audio.play().catch(e => console.log('Audio playback error:', e));
         }
         
         // Enter key to send

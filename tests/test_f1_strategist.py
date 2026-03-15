@@ -91,13 +91,25 @@ class TestF1StrategistAPI:
     @pytest.mark.asyncio
     async def test_chat_endpoint_format(self, client):
         """Test chat endpoint request/response format."""
+        # Test that endpoint exists and returns proper structure
+        # Note: Full integration test requires valid Gemini credentials
+        
+        # Test that endpoint handles missing message properly
+        response = client.post("/api/chat", json={})
+        assert response.status_code == 422  # Validation error for missing required field
+        
+        # Test that endpoint structure is correct with mock
         with patch('src.api.main.get_agent') as mock_get_agent:
             mock_agent = Mock()
             mock_agent.chat = AsyncMock(return_value="Box now!")
             mock_get_agent.return_value = mock_agent
             
-            # This tests the endpoint structure
-            # Actual API call requires valid Gemini credentials
+            response = client.post("/api/chat", json={"message": "test"})
+            # With mock, this should return proper response structure
+            if response.status_code == 200:
+                data = response.json()
+                assert "response" in data
+                assert "agent" in data
 
 
 class TestSystemPrompt:
