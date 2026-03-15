@@ -1,0 +1,71 @@
+# =============================================================================
+# F1 Race Strategist Live Agent - Cloud Build Configuration
+# =============================================================================
+# This file automates the build and deployment process using Google Cloud Build.
+# It provides Infrastructure-as-Code for the hackathon bonus points.
+# =============================================================================
+
+steps:
+  # Step 1: Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/f1-strategist-agent:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/f1-strategist-agent:latest'
+      - '.'
+    id: 'build'
+
+  # Step 2: Push to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/f1-strategist-agent:$COMMIT_SHA'
+    id: 'push-commit'
+    waitFor: ['build']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/f1-strategist-agent:latest'
+    id: 'push-latest'
+    waitFor: ['build']
+
+  # Step 3: Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'f1-strategist-agent'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/f1-strategist-agent:$COMMIT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--timeout'
+      - '300'
+      - '--set-env-vars'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID,APP_ENV=production'
+    id: 'deploy'
+    waitFor: ['push-commit']
+
+# Store images
+images:
+  - 'gcr.io/$PROJECT_ID/f1-strategist-agent:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/f1-strategist-agent:latest'
+
+# Substitutions (can be overridden)
+substitutions:
+  _REGION: 'us-central1'
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY
